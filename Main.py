@@ -67,7 +67,7 @@ if not BOT_TOKEN:
 # Optional comma-separated ADMIN_IDS supports multiple full admins.
 SECOND_ADMIN_ID = 6452869652
 def _load_admin_ids() -> List[int]:
-    raw = os.getenv("ADMIN_IDS", "6452869652")
+    raw = os.getenv("ADMIN_IDS", "8972261962")
     ids: List[int] = []
     for part in raw.split(","):
         part = part.strip()
@@ -87,7 +87,7 @@ def _load_admin_ids() -> List[int]:
 
 ADMIN_IDS = _load_admin_ids()
 ADMIN_ID = ADMIN_IDS[0]
-ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@Dery8990").strip() or "@Dery8990"
+ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@umarseller96").strip() or "@umarseller96"
 BOT_USERNAME = ""
 
 USDT_TO_INR = 90.0
