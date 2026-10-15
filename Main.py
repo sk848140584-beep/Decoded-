@@ -89,7 +89,7 @@ def _load_admin_ids() -> List[int]:
     return ids
 
 ADMIN_IDS = _load_admin_ids()
-ADMIN_ID = ADMIN_IDS[]
+ADMIN_ID = ADMIN_IDS[8781972258]
 ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@adnanseller1").strip() or "@adnanseller1"
 BOT_USERNAME = ""
 
