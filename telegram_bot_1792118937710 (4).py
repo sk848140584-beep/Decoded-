@@ -100,7 +100,7 @@ def _load_admin_ids() -> List[int]:
 
 ADMIN_IDS = _load_admin_ids()
 ADMIN_ID = ADMIN_IDS[0]
-ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@umarseller96").strip() or "@umarseller96"
+ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@adnanseller1").strip() or "@adnanseller1"
 BOT_USERNAME = ""
 
 USDT_TO_INR = 90.0
