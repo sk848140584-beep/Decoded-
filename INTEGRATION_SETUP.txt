@@ -1,0 +1,219 @@
+Panel Shop — PAYMENT / API INTEGRATION
+
+Admin ID: 5587013495
+Owner ID: 5587013495
+Store: Panel Shop
+
+PAYTM BUSINESS PAYMENT
+UPI ID: paytm.s1tk6od@pty
+Merchant ID: SDfRhW21109811758334
+Merchant Key: SDfRhW21109811758334
+
+QR URL: https://paytm.anujbots.xyz/qr.php
+VERIFY URL: https://paytm.anujbots.xyz/verify.php
+
+The UPI checkout sends the exact payable amount to the QR endpoint.
+Verification is performed against the Paytm Business verification endpoint.
+A payment is credited/delivered only when the gateway reports success AND
+the verified amount exactly matches the amount locked to that order.
+
+
+ADMIN WIZARD (ek-ek karke poochne wala flow)
+/admin ke saare typed-format buttons ab guided hain (commands/_wz.js):
+  Add Product : Category (buttons) -> Panel name -> Emoji (skip) -> Days -> PID -> Price -> Reseller price -> Confirm
+  Add/Remove Plan, Add/Remove Key, ID Category/Stock/Prices, Panel prices, Add/Remove Balance,
+  Reseller add/remove, Discounts, Member custom price, Co-Admins, Set User ID (ownership transfer),
+  Bot Username, Admin Username, Reseller fees.
+Text answers are routed by the wildcard command (_.js) to /wz while a wizard is active.
+Wizard state auto-expires after 20 minutes; /admin or /start cancels it.
+Days like 7 / 7d / 1h / 30m are saved as "7 Days" / "1 Hour" / "30 Minutes" (API-friendly labels).
+
+QUICK ADD API KEY (/admin -> "Quick Add API Key")
+Category (buttons) -> Panel (names of panels inside that category) -> Hours/Days -> number
+-> Price (public) -> Reseller price -> PID (website product id) -> Confirm.
+Same panel par same time dobara add karoge to woh update hota hai (warning dikhti hai).
+
+
+FAMPAY (FamGateway API v2)  —  https://famgateway.in/docs.php
+FamPay ke liye sirf API key chahiye (UPI ID FamGateway dashboard me connected FamPay account se aati hai).
+Set karo:  /set_payment_fampay UPI_ID|API_KEY   (phir /admin -> Payment Gateways -> FamPay ON)
+QR create : GET  /api/qr.php?api_key=KEY&amount=X          -> data.order_id, data.qr_url
+Verify    : GET  /api/verify-order.php?api_key=KEY&order_id=ID -> status success + data.utr
+Orders ka ID fg_... hota hai; verify automatically isi API se hota hai.
+Note: FamGateway me FamPay Gmail ka IMAP enable hona zaroori hai (docs Sec 1), warna payment detect nahi hogi.
+
+
+v6 CHANGELOG (FamGateway auto-verify fix)
+- verify-order.php reply me `amount` nahi hota -> pehle "amount mismatch" ban ke auto-verify band ho jaata tha.
+  Ab order-bound locked amount se verify hota hai (reply me amount ho to base/payable dono se match check).
+- QR caption me payable_amount (agar gateway bheje) dikhta hai; wallet me locked base amount credit hota hai.
+- Auto-verify polling ab QR-state save error se nahi rukti (pehle silent try/catch).
+- Expired order par polling band + user ko message; unexpected/non-JSON gateway reply admin ko ek baar debug me dikhta hai.
+- Balance credit fail hone par ab owner ko alert aata hai (pehle silent).
+
+v7 CHANGELOG (auto payment accept fix)
+Official docs (famgateway.in/docs.php) ke hisaab se: QR banane ke liye Gmail IMAP nahi chahiye, par verify-order ke liye chahiye.
+Isliye QR ban jaata tha par verify HTTP error (500/401/429) deta tha aur bot use chupchap retry karke nigal jata tha.
+- /auto_verify_retry ab error dikhata hai: owner ko exact HTTP code + reply + fix hint (ek baar per order). 408/expired par polling band + user ko message.
+- Polling ab har 5s (docs: 3-5s), max 66 tries (~5.5 min; order 5 min me expire).
+- Order state ab QR photo bhejne se PEHLE save hota hai; fallback "Verify Payment" button 60s baad aata hai (pehle 180s).
+- API key missing ho to owner ko alert (pehle silent return).
+- NEW /famtest [order_id]  (owner only): verify-order ek baar call karke batata hai key/IMAP/order me kya problem hai.
+- NEW /famdebug on|off     (owner only): poll #2 aur har 12th poll ka raw gateway reply owner ko bhejta hai.
+
+v10 CHANGELOG (QR generation fix)
+- QR generation ab GET /api/qr.php?api_key=... (query-param auth) ki jagah
+  POST /api/create-order use karta hai, Authorization: Bearer <key> header ke
+  saath (+ X-Api-Key header, belt-and-suspenders) — jaisa FamGateway dashboard
+  khud recommend karta hai. Yehi QR na aane ka sabse likely reason tha.
+- Verify-order calls (check/auto_verify_poll/check_buy/famtest) me bhi ab
+  Bearer header add hai query-param ke saath.
+- BUG FIX: _check.js, _check_buy.js, _auto_verify_poll.js me Paytm verify
+  fallback URL galti se "https://famgateway.in/verify.php" ho gaya tha
+  (sahi: "https://paytm.anujbots.xyz/verify.php") — isse Paytm verification
+  hamesha fail hota. Same typo _set_payment_upi.js / _btn.js ke display text
+  me bhi tha, wahan bhi fix kiya.
+- NEW /famtest_qr [amount] (owner only): sirf create-order (QR) step test
+  karta hai — exact HTTP code + raw reply dikhata hai. /famtest sirf
+  verify-order test karta hai; ab dono steps alag se debug ho sakte hain.
+
+
+v20 CHANGELOG (ZapUPI create-order was missing required fields -> QR never generated)
+- ZapUPI /api/create-order ko customer_mobile (required) aur success_url/failed_url/
+  timeout_url (bot deep-links: ?start=success_<id> etc.) bhi ab bheja jaata hai.
+  Pehle sirf zap_key/order_id/amount/remark jaate the — ZapUPI isse request hi reject
+  kar raha tha (HTTP-level error -> "QR generate nahi ho paya").
+- customer_mobile default "9999999999" hai; admin chaho to /set_payment_zapupi ke
+  saath "zapupi_customer_mobile" setting se badal sakte hain (future enhancement).
+- NEW: /start success_<id> | failed_<id> | timeout_<id> (ZapUPI hosted-payment-page
+  redirect) ab ek "aap wapas aa gaye" acknowledgement dikhata hai — asli confirmation
+  hamesha /zap_webhook se aati hai.
+
+v19 CHANGELOG (ZapUPI webhook auto-verify — same pattern as FamPay v8)
+- NEW /zap_webhook: ZapUPI payment hote hi bot ko khud call karta hai (create-order
+  me per-order `webhook_url`, TeleBotHost signed user webhook: Webhook.getUrl).
+  Webhook sirf TRIGGER hai — credit tabhi hota hai jab order-status API
+  (server-to-server, zap_key se) confirm ho + locked amount match ho (/zap_poll -> /zap_result -> /onCheck).
+- Order -> user mapping (zap_order_owner_<id>) /zap_onOrder me set hoti hai; duplicate-credit
+  protection pehle jaisi (zap_done_<id>).
+- NEW /zapwebhooktest (owner only): bot apne webhook ko self-test POST karke batata hai ki endpoint chal raha hai.
+- NEW /zapdebug on|off (owner only): zap_webhook ki har call ka summary owner ko bhejta hai.
+- "Verify Payment" button pehle jaisa hi safety-net rehta hai agar webhook kisi wajah se na chale.
+
+ZAPUPI (pay.zapupi.com)
+Sirf zap_key chahiye. Setup:  /set_payment_zapupi ZAP_KEY   (ya /admin -> Payment Gateways -> "Set Zapupi Key")
+Phir /admin -> Payment Gateways -> Zapupi ON.  Jab tak key set nahi, toggle ON nahi hota.
+Create : POST https://pay.zapupi.com/api/create-order  {zap_key, order_id, amount, remark} -> payment_url
+Status : POST https://pay.zapupi.com/api/order-status  {zap_key, order_id} -> data.status Pending | Success | Failed
+Order IDs "ZP..." se shuru hote hain.  Bot user ko "Pay Now" link deta hai, har 7s status poll karta hai (~9 min),
+"Verify Payment" button bhi hai. Credit tabhi hota hai jab status Success AND amount locked order amount se match kare
+(credit/claim-lock/auto-purchase wahi /onCheck karta hai jo FamPay/Paytm ke liye karta hai).
+Buttons: Add Balance screen + product checkout (Pay via Zapupi).  Reseller-upgrade checkout abhi sirf FamPay se chalta hai.
+Debug: /zaptest ORDER_ID (owner only) -> order-status ka raw reply.
+
+
+v8 CHANGELOG (auto payment accept — ASLI wajah mili)
+TeleBotHost docs (docs.telebothost.com/bot-instance/running-commands) ke hisaab se Bot.run ke parameters sirf:
+command, options, user_id, chat_id, user_telegramid, ignoreMissingCommand. `run_after` EXIST NAHI KARTA (wo Bots.Business ka hai).
+Isliye pehle jo `Bot.run({... run_after: N})` the wo sab TURANT chalte the:
+  - /qr_timeout "QR aane me der ho rahi hai" QR aane se PEHLE dikh jata tha.
+  - /onQR ke 80 verify-order polls ek saath turant chal jaate the (rate-limit/lock + polling QR dikhne se pehle khatam).
+  - /auto_verify_fallback ka "Verify Payment" button turant dikhne wala tha.
+Fix:
+  - Sab delayed watchdog/poll hata diye (7 generator files + zap).
+  - NEW /fam_webhook: FamGateway payment hote hi bot ko khud call karta hai (create-order me per-order `webhook_url`,
+    TeleBotHost signed user webhook: Webhook.getUrl). Webhook sirf TRIGGER hai — credit tabhi hota hai jab verify-order API
+    (server-to-server, API key) se confirm ho + locked amount match ho.
+  - Order -> user mapping (fg_order_owner_<id>); duplicate-credit protection (claimed_topup_<id>) pehle jaisi.
+  - QR ke saath "Verify Payment" button (safety net). Hide karna ho: /famverifybtn off
+  - NEW /famwebhooktest (owner): bot apne webhook ko self-test POST karke batata hai ki endpoint chal raha hai.
+  - /famdebug on : webhook + verify-order raw replies owner ko.
+  - Legacy ID-buy (qr.php?upi=) aur Paytm-style verify se hardcoded default UPI ID / merchant key hata di (ab admin ne set ki ho tabhi QR banta hai).
+
+
+v23 — UI style toggle (NEW <-> CLASSIC) on top of v22
+- /admin me 2 side-by-side buttons: "🎨 Buttons: CLASSIC/NEW ✅" aur "📝 Text: CLASSIC/NEW ✅" (command: /ui_toggle btn|text).
+- Default = CLASSIC (purana). Properties: ui_btn_new, ui_text_new.
+- Buttons NEW: shop screen (/buy_hack) rangeen + 2 side-by-side. Text NEW: /start + shop screen ➤ style.
+
+v24 — default support contact normal kiya
+- Pehle default support link kisi aur ke username (Rolex306 / Galu_Modz_Owner) par jaata tha. Ab hata diye.
+- /support ka "Contact Admin": support_link > admin_username > owner ki apni profile (tg://user?id=OWNER_ID).
+
+
+v25 — "button dabane par response nahi" FIX
+ROOT CAUSE: TeleBotHost docs (docs.telebothost.com/globals/bot): bot token commands ko KABHI expose nahi hota ("by design").
+21 commands `HTTP.post("https://api.telegram.org/bot" + bot.token + "/...")` use karte the -> URL ".../botundefined/..." ban ke chup-chaap fail hota tha.
+Dead the: Priority Support (/support), Reseller Club (/reseller), Tutorials (/how), /balance, AI Support, Admin AI,
+ stock purge confirm, remove-product confirm, key list / key delete, Stars invoice, PreCheckout.
+FIX: sab 24 calls Api.* me convert (Api bot ka token khud use karta hai). editMessageText fail ho to naya message bhejta hai.
+ - /profile: DP ab Api.getUserProfilePhotos se.
+ - AI Add (screenshot se plans): ab Dashboard ENV me BOT_TOKEN chahiye (sirf yahi feature).
+ - /view_rem_stock refresh bug (options.params) fix.
+ - /support, /reseller, /how, /ai_support_start ke khaali `catch {}` ab user ko message + owner ko error bhejte hain.
+
+
+v83 CHANGELOG (menu = screenshot style)
+- Main menu (/start + /menu): Shop | Check Update + Add Balance | My Profile + All History | Referral + How To Use (link ↗) |
+  Check Public Feedback | Support + Lucky | Top 5 Sellers Monthly | Language  (same colors + premium icons).
+- NEW /topsellers : is mahine ke top 5 buyers (Bot property topm_YYYY-MM, har successful purchase par update).
+- NEW /language  : English / Hinglish / Hindi — menu ke button labels badalte hain (User property ui_lang).
+- Shop flow ke HTML messages me plain emoji -> premium emoji (IDs aapki files se). Buttons me icon add.
+
+v84 CHANGELOG (stock add -> key deliver fix)
+- /addkey aur admin wizard "Add Keys" ab buy-side jaisa stock key banate hain (naam me space/special char -> "_").
+  Pehle "Drip Client (Root)" jaise naam par stock alag bucket me jata tha aur Hour/Minute plan me key kabhi deliver nahi hoti thi.
+- Buy-side ab purane raw-name bucket ka stock bhi padhta hai (pehle add kiya hua stock bekaar nahi gaya).
+- Key bikne par woh key saari copies (slug / raw / legacy) se hat jaati hai — same key dobara bikne ka risk khatam.
+
+v85 CHANGELOG (AI Add: root / non-root / iOS ab sahi padhta hai)
+- External Key + Website API mode: category ab website ke category/platform/type/os/group/section fields, category-wise grouped
+  response (nested ya {"Non Root":[...]}), product/plan naam aur description se detect hoti hai (pehle sirf product naam).
+- Same product naam alag category me ho to ab alag-alag product bante hain: "Drip Client (Non Root)", "Drip Client (Root)" ...
+  (pehle same-time wale plans "dobara" bolkar skip ho jaate the aur sab BOTH me ghus jaata tha).
+- Preview me har product ke aage uski category; jo detect na ho wo ❓ + ek tap me "Baaki sab -> Root / Non Root / iPhone".
+- Website URL mode: AI ko section/tab/label se category dekhne ka instruction + page-text keyword hint (AI "both" bole to kaam aata hai).
+
+v88 — "⚠️ Something went wrong. Please retry soon." (External Add Product / Add All) FIX
+ROOT CAUSE: TeleBotHost docs (http-instance/limits, fallback-commands): HTTP success/error callbacks aur Bot.run milake
+ek execution me max 6 nested commands. Ye message platform ka hai (bot code me nahi), chain limit tootne par aata hai.
+ 1) /aiadd_ext_save har 5 products ke baad Bot.run se khud ko dobara chalata tha -> ~30 products ke baad chain toot ti thi
+    (40 products pe bhi fail). FIX: ek execution me time-budget (5s / 60 products) tak save, chain depth max 3, uske baad
+    "▶️ Aage badho (x/y)" button — bacha hua kaam wahin se chalta hai, kuch dobara add nahi hota.
+ 2) /aiadd_ext_result aur /aiadd_api_result ek ke baad ek 10 actions probe karte the (HTTP callback chain) -> website error
+    de to chain toot ti thi. FIX: ek round me max 4 actions, fail par asli jawab dikhta hai, "Dobara try karo" agle actions se shuru.
+
+
+v89 — AI Add (External Key): "products" OK aane ke baad bhi "Unauthorized" (api_products/get_products/product_list) FIX
+ROOT CAUSE: website ka jawab {"ok":true,"status":"success","variants":[...]} hota hai. Top-level par "variants" key hone se bot
+poore jawab ko hi ek "product row" samajh leta tha, andar ki list padhta hi nahi tha -> "list nahi mili" maan kar baaki actions
+(api_products, get_products, product_list...) try karta tha, jo us website par Unauthorized dete hain. Asli jawab pehle action me aa chuka tha.
+FIX: _aiadd_ext_result.js + _aiadd_api_result.js — top-level wrapper ko skip karke andar ki variants/plans list padhi jaati hai.
+Price keys me reseller_price / partner_price / your_price / public_price / sale_price bhi add (pehle sirf price/amount/cost/rate/mrp).
+
+v89b — Buy response { ok, order_id, key, keys:[...], orders:[...], balance, total_price, expires_at }:
+key / keys[0] / orders[0].key (string ya {key:..}) sab se key nikalti hai; order_id + expires_at admin log me aate hain.
+
+
+v90 — 📡 AUTO SHARE (/admin -> "📡 Auto Share (Updates)")
+Source group/channel me naya post aate hi destination group/channel me apne aap copy (ya forward) ho jaata hai.
+Admin menu: ON/OFF, Destination, Add/Remove Sources (@username, -100ID ya us chat ka message forward), Copy/Forward mode,
+Keywords (sirf ye words wale posts), Block words, Footer, Test, shared counter.
+Zaroori: BOT source chat me member/admin ho (group me admin banao, warna usko normal messages nahi dikhte) aur destination me admin ho.
+Naye commands: /autoshare, /autoshare_save, /autoshare_fwd.  Changed: /_.js (incoming-post hook), /admin (button).
+Limits: albums alag-alag messages me aate hain; edit par dobara share nahi hota; "restrict saving content" wale chat ka media copy nahi hota.
+Channel posts par bot ab kabhi /start nahi bhejta.
+
+
+v91 — Remove/Manage Product me category tag (ROOT / NON ROOT / iOS)
+Same naam ke panels (jaise "PHANTOM FF ALL" root aur non-root dono) pehle list me ek jaise dikhte the. Ab naam ke aage category aur plan count dikhta hai:
+ - Remove Product list + remove ke baad confirmation
+ - Admin wizard ka panel picker (Remove Plan, Add Plan, Add Key, Prices, Discounts...) + recap me Category line
+ - Manage Products list, Product Detail title, Delete confirm
+
+
+v92 — Shop screen style + click animation
+- Shop (/buy_hack) CLASSIC style ab: Non Root 🟢 hara, Android Root 🔵 neela, iOS 🔴 laal, ek-ek line me; Back neutral (grey). Heading "SELECT YOUR DEVICE" + rang legend.
+  (NEW style jaisa pehle tha waisa hi hai — /admin -> Buttons toggle.)
+- (OPTIONAL, default OFF = normal Telegram click) Root / Non Root / iOS dabate hi "⏳ Loading ... ▰▰▱▱▱" ke 3 frames phir product list. /admin -> "✨ Click Animation" se ON/OFF.
+  Welcome GIF/video wale (media) screen par ye animation nahi chalta (media message edit nahi hota).
