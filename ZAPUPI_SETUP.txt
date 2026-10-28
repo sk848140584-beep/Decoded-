@@ -1,0 +1,21 @@
+ZAPUPI INTEGRATION — SETUP NOTES
+================================
+1. Backup your live index.php, then upload the new index.php (keep the file name "index.php").
+2. Log in as admin -> Settings -> "ZapUPI — Auto Payment" card:
+   - paste your ZAP KEY -> SAVE ZAPUPI KEY  (stored encrypted, never shown again)
+   - press the ZAPUPI toggle so it says ON
+3. In your ZapUPI dashboard set the webhook URL to:
+   https://YOUR-DOMAIN/index.php?api=zapupi_webhook
+   (the same URL is also shown inside the admin card)
+4. Resellers now see a "PAYTM QR / ZAPUPI" selector on the Deposit page
+   (only when BOTH are turned on; if only ZapUPI is on, it is used automatically).
+
+HOW IT WORKS
+- User taps PAYMENT NOW -> server creates the order -> user is redirected (same tab) to ZapUPI.
+- Wallet is credited ONLY after the server confirms with ZapUPI's order-status API
+  (webhook payload is never trusted by itself), exact amount match, once only.
+- Test-environment payments (txn_id DUMMY..., environment=test) never credit the wallet.
+- If the webhook is late, the page re-checks status automatically when the user returns.
+
+TEST BEFORE GOING LIVE
+- Do one small deposit (e.g. Rs 10) and confirm the wallet increases exactly once.

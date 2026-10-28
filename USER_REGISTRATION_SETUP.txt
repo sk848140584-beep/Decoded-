@@ -1,0 +1,37 @@
+USER REGISTRATION SYSTEM — SETUP & NOTES
+=========================================
+WHAT WAS ADDED
+- New self-signup role: "user" (separate from "reseller").
+  - Signup form on the login screen ("Create an account" link) asks for
+    Username, Mobile, Email, Password.
+  - Account is active immediately — no admin approval needed.
+- Users get: wallet, deposits (Paytm + ZapUPI), buy keys — same as resellers.
+- Users do NOT get: API page, API key generation, API docs. The API nav
+  button is hidden for them, and the backend blocks API routes even if
+  someone tries to call them directly (403 Forbidden).
+- Pricing: Admin -> Settings -> "User Price List" card. ONE shared price
+  list applies to every self-signup user. Leave a field blank to use the
+  plan's default price. Resellers are completely unaffected — their
+  existing default/custom pricing stays exactly as before.
+
+ADMIN — WHAT TO DO
+1. Upload the new index.php (back up the old one first).
+2. Log in as admin -> Settings tab -> scroll to "User Price List" ->
+   set a price for each product/duration you want users to be able to buy.
+   Anything left blank uses the normal default price.
+3. That's it — no other setup needed. The database updates itself
+   automatically (new columns are added safely; nothing existing is touched).
+
+HOW IT WORKS UNDER THE HOOD (for your reference)
+- resellers table gained: account_type ('reseller' default, or 'user'),
+  mobile, email.
+- A reserved internal id (0) in custom_prices stores the ONE shared user
+  price list — it is never a real account, just a lookup row.
+- Signup is rate-limited per IP (6 signups / 15 minutes) to reduce bot abuse.
+- Username/mobile/email uniqueness is enforced at signup.
+
+TEST BEFORE GOING LIVE
+- Create a test user account from the login page's signup link.
+- Confirm: no API tab visible, deposit works, buying a key works at the
+  price you set in "User Price List".
+- Confirm an existing reseller login still sees the API tab as before.
