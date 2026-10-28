@@ -368,7 +368,7 @@ body.admin-mode #app{display:none !important;visibility:hidden !important;pointe
 }
 </style>
 
-</head><body></body></html>';
+</head><body style="background:#080b12;color:#e0b932;font-family:monospace;padding:30px"><h2>Setup error</h2><p>' . htmlspecialchars($message) . '</p></body></html>';
     }
     exit;
 }
